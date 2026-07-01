@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply text-slate-200 antialiased;
+  background-color: #070a12;
+  background-image:
+    radial-gradient(900px 480px at 78% -8%, rgba(245, 158, 11, 0.14), transparent 60%),
+    radial-gradient(820px 460px at 8% 4%, rgba(56, 189, 248, 0.1), transparent 60%),
+    linear-gradient(180deg, #0a0e18 0%, #070a12 100%);
+  background-attachment: fixed;
+}
+
+/* Tabular figures keep prices from twitching as digits change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Slim, dark scrollbars to match the dashboard theme. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+.live-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
