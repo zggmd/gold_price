@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import '@/lib/bootstrap'; // side effect: ensures TLS + poller are running
 import { getCoverage, getLatest, getSparklines } from '@/lib/db';
 import { METALS } from '@/lib/metals';
 

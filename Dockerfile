@@ -30,10 +30,9 @@ RUN npm install --no-audit --no-fund
 
 COPY . .
 
-# Prevent the background poller from starting (and holding the event loop)
-# during `next build`. Cleared at runtime below.
-ENV DISABLE_GOLD_POLLER=true
 ENV NEXT_TELEMETRY_DISABLED=1
+# The poller is started lazily on the first API request (see src/lib/bootstrap.ts),
+# so `next build` never triggers it — no special build-time gating needed.
 RUN npm run build
 
 # ---------------------------------------------------------------------------

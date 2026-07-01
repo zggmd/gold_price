@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import '@/lib/bootstrap'; // side effect: ensures TLS + poller are running
 import { fetchIcbcPrices } from '@/lib/icbc';
 import { buildMetalMeta } from '@/lib/metals';
 

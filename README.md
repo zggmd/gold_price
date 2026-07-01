@@ -33,12 +33,13 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-首次启动会立即采集一次，随后按间隔轮询。开发模式下 `instrumentation` 同样会启动采集器。
+采集器在**首次请求接口时**自动启动（见 `src/lib/bootstrap.ts`，由 API 路由以副作用方式引入）。
+因此打开页面或访问任意 `/api/prices/*` 即会触发首次采集，随后按间隔轮询。
 
 构建生产包：
 
 ```bash
-npm run build        # 构建期间自动屏蔽采集器（DISABLE_GOLD_POLLER），不会联网
+npm run build        # 采集器在首次请求时才启动，构建期间不会联网
 npm start
 ```
 
@@ -58,7 +59,6 @@ npm start
 | `ICBC_URL` | 工行接口 | 可替换为代理地址 |
 | `USER_AGENT` | 桌面 Chrome | 请求 UA |
 | `DISABLE_LEGACY_TLS` | `false` | 设为 `true` 关闭对 ICBC 旧版 TLS 重协商的兼容（仅当 ICBC_URL 指向现代代理时使用） |
-| `DISABLE_GOLD_POLLER` | `false` | 设为 `true` 不启动后台采集（构建时自动使用） |
 
 > **关于 TLS**：ICBC 的接口需要 OpenSSL 的「legacy server connect」(unsafe legacy renegotiation)，
 > 现代 Node 默认关闭，直接 `fetch` 会报 `ERR_SSL_UNSAFE_LEGACY_RENEGOTIATION_DISABLED`。
@@ -95,8 +95,8 @@ src/
     api/prices/{latest,now,history,metals}/route.ts   接口
     layout.tsx page.tsx globals.css                    页面
   components/   PriceCard / HistoryChart / Sparkline / RangeTabs
-  lib/          config / types / metals / db / icbc / poller / legacy-tls / format
-  instrumentation.ts      启动时配置 TLS 并拉起后台采集器
+  lib/          config / types / metals / db / icbc / poller / legacy-tls / format / bootstrap
+  bootstrap.ts         首次请求时配置 TLS 并拉起后台采集器（替代 instrumentation，兼容 dev）
 Dockerfile              多阶段、多架构
 ```
 
