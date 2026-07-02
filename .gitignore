@@ -12,6 +12,7 @@
 
 # data & logs (SQLite DB + runtime logs must never be committed)
 /data/
+/backups/
 *.sqlite
 *.sqlite-*
 *.db

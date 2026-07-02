@@ -1,0 +1,29 @@
+# Run the gold-price service with a PERSISTENT named volume so SQLite data
+# survives container recreation / image rebuilds. Adjust to taste.
+#
+#   docker compose up -d --build      # build (if needed) and start
+#   docker compose logs -f            # follow logs
+#   docker compose down               # stop (data kept in the gold-data volume)
+#   docker compose down -v            # stop AND delete the data volume
+services:
+  gold-price:
+    image: gold-price:latest
+    build: .                         # build the image if it isn't present yet
+    container_name: gold-price
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # All optional; defaults shown. See README for the full list.
+      POLL_INTERVAL_SECONDS: "30"
+      RAW_RETENTION_HOURS: "72"
+      MAINTENANCE_INTERVAL_MINUTES: "60"
+      MAX_HISTORY_POINTS: "400"
+      # DATA_DIR defaults to /app/data, which is the volume mounted below.
+      # To put the DB file on an external/network disk instead, mount it and
+      # set DB_PATH, e.g.  DB_PATH: "/mnt/nas/gold.sqlite"
+    volumes:
+      - gold-data:/app/data          # <-- persistence: outlives `docker rm`
+
+volumes:
+  gold-data:

@@ -66,12 +66,42 @@ npm start
 
 ## Docker
 
-单架构本地构建：
+> **数据持久化**：数据存在 SQLite 文件里，**不在镜像中**。重新 `docker build` 不会丢数据；
+> 但 **删除/重建容器**（`docker rm`、`docker run --rm`）默认会丢——因为不显式挂载时
+> Dockerfile 的 `VOLUME ["/app/data"]` 会建一个随容器销毁的**匿名卷**。
+> 所以一定要显式挂载命名卷或绑定挂载（见下方 `docker-compose.yml`）。
+
+推荐用 compose（自带命名卷 + 重启策略）：
+
+```bash
+docker compose up -d --build    # 构建并启动，数据落在 gold-data 命名卷
+docker compose down             # 停止，数据保留（除非加 -v）
+```
+
+手动 `docker run` 时记得挂卷：
 
 ```bash
 docker build -t gold-price .
+# 命名卷（推荐，容器删了数据还在）
 docker run -p 3000:3000 -v gold-data:/app/data gold-price
+# 或绑定挂载到宿主机目录，方便直接拷贝
+docker run -p 3000:3000 -v /opt/gold-data:/app/data gold-price
 ```
+
+**备份与恢复**（在线热备，WAL 模式下比直接拷文件安全）：
+
+```bash
+mkdir -p backups
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v gold-data:/app/data \
+  -v "$PWD/scripts/backup.mjs:/app/backup.mjs:ro" \
+  -v "$PWD/backups:/backup" \
+  gold-price node /app/backup.mjs /backup/gold.sqlite
+```
+
+`--user` 让容器以你的宿主机 UID 运行，这样非 root 的镜像才能把备份写进你拥有的目录。
+
+恢复时停掉服务，把备份覆盖回卷里的 `gold.sqlite`（并删掉 `-wal`/`-shm`），见 `scripts/backup.mjs` 注释。
 
 多架构构建并推送（需要 buildx）：
 
@@ -85,7 +115,8 @@ docker buildx build \
 
 - 镜像采用多阶段构建 + Next.js `standalone` 输出，运行镜像精简。
 - `better-sqlite3` 原生模块在构建阶段按目标架构编译，arm64 经 buildx 处理。
-- `/app/data` 声明为卷，持久化 SQLite；请挂载命名卷以保留历史数据。
+- **外置存储**：把 SQLite 文件放到网络盘/云盘只需挂载该目录并设 `DB_PATH`
+  （如 NFS / 阿里云 NAS / AWS EFS）。当前不支持独立的 Postgres/MySQL 服务，需要时可在此基础上加存储抽象层。
 
 ## 目录结构
 
