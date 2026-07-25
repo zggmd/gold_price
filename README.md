@@ -1,144 +1,148 @@
-# 贵金属行情 · ICBC Gold Price
+# ICBC Precious Metals Price
 
-一个自托管的工商银行账户贵金属行情采集与可视化服务。项目定时采集黄金、白银、铂金、钯金的人民币和美元报价，保存到 SQLite，并提供实时看板和历史查询 API。
+[中文文档](./README.zh-CN.md)
 
-> 数据仅供展示，不构成投资建议。
+A self-hosted ICBC account precious-metals price collector and dashboard. It periodically collects CNY and USD quotes for gold, silver, platinum, and palladium, stores them in SQLite, and exposes both a real-time dashboard and historical price APIs.
 
-## 功能概览
+> The data is provided for informational purposes only and does not constitute investment advice.
 
-- 采集 8 个账户贵金属品种：人民币/美元账户黄金、白银、铂金、钯金。
-- 后台默认每 30 秒拉取一次 ICBC 行情，支持超时、随机抖动和失败退避。
-- 首页展示最新价格、涨跌幅、迷你走势及可交互历史图表。
-- 支持 `1h`、`6h`、`24h`、`7d`、`30d`、`90d` 和全部历史区间。
-- 近期开盘明细与长期小时 OHLC 两级存储，控制 SQLite 数据规模。
-- 历史查询由服务端自动降采样，避免长周期返回过多数据。
-- 提供多阶段、多架构 Docker 镜像及 SQLite 在线备份脚本。
+## Features
 
-## 技术栈
+- Collects 8 account precious-metal products: gold, silver, platinum, and palladium quoted in both CNY and USD.
+- Polls ICBC every 30 seconds by default, with request timeouts, randomized jitter, and failure backoff.
+- Displays current prices, change rates, sparklines, and an interactive historical chart.
+- Supports `1h`, `6h`, `24h`, `7d`, `30d`, `90d`, and all-time ranges.
+- Uses recent high-frequency snapshots plus long-term hourly OHLC storage to keep SQLite compact.
+- Downsamples historical responses on the server to avoid oversized payloads.
+- Provides short-lived server-side caching and request coalescing for direct live-price requests.
+- Includes a multi-stage, multi-architecture Docker image and an online SQLite backup script.
 
-- Next.js 15（App Router）与 React 19
+## Technology
+
+- Next.js 15 with the App Router
+- React 19
 - TypeScript
 - Tailwind CSS
-- SQLite 与 `better-sqlite3`
-- `undici`，用于配置 ICBC 接口所需的旧版 TLS 兼容
+- SQLite with `better-sqlite3`
+- `undici` for ICBC legacy TLS compatibility
 
-## 快速开始
+## Quick Start
 
-环境要求：
+Requirements:
 
-- Node.js 20+
+- Node.js 20 or later
 - npm
 
-安装依赖并启动开发服务：
+Install dependencies and start the development server:
 
 ```bash
 npm install
 npm run dev
 ```
 
-访问 <http://localhost:3000>。首次请求任意 `/api/prices/*` 接口时会启动后台采集器并立即执行一次采集，因此刚打开页面时可能短暂显示“等待采集”。
+Open <http://localhost:3000>. The background poller starts when an `/api/prices/*` endpoint is requested for the first time and immediately performs an initial poll. The dashboard may briefly show that it is waiting for data.
 
-常用命令：
+Available commands:
 
 ```bash
-npm run dev       # 启动开发服务器
-npm run lint      # 运行 Next.js lint
-npm run build     # 创建生产构建
-npm start         # 启动已构建的生产服务
+npm run dev       # Start the development server
+npm run lint      # Run the configured Next.js lint command
+npm run build     # Create a production build
+npm start         # Start the production server
 ```
 
-运行时数据默认写入 `./data/gold.sqlite`。`data/`、备份、日志和本地环境变量文件均已被 Git 忽略。
+Runtime data is written to `./data/gold.sqlite` by default. The `data/` directory, backups, logs, and local environment files are ignored by Git.
 
-## 系统架构
+## Architecture
 
 ```text
-ICBC 行情接口
-      │
-      ▼
-poller：拉取、校验、标准化
-      │
-      ▼
+ICBC price endpoint
+        │
+        ▼
+poller: fetch, validate, normalize
+        │
+        ▼
 SQLite
-  ├─ price_snapshots：近期高频明细
-  └─ price_hourly：长期小时 OHLC
-      │
-      ▼
+  ├─ price_snapshots: recent high-frequency data
+  └─ price_hourly: long-term hourly OHLC data
+        │
+        ▼
 Next.js Route Handlers
-      │
-      ▼
-React 行情看板
+        │
+        ▼
+React dashboard
 ```
 
-采集器采用懒启动方式：API 路由导入 `src/lib/bootstrap.ts`，后者在当前 Node.js 进程中只启动一个轮询循环。构建阶段不会访问 ICBC。
+The poller uses lazy initialization. API routes import `src/lib/bootstrap.ts`, which enables TLS compatibility and starts one polling loop in the current Node.js process.
 
-默认保留最近 72 小时的高频明细。维护任务将所有已完成小时聚合为 OHLC 后，再清理超期明细；小时数据长期保留。SQLite 使用 WAL 模式，以支持采集写入期间的并发查询。
+By default, high-frequency snapshots are retained for 72 hours. A maintenance task rolls completed hours into OHLC records before deleting expired snapshots. Hourly records are retained indefinitely. SQLite runs in WAL mode to support reads while the poller writes.
 
-## 支持的品种
+## Supported Products
 
-| Key | 品种 | 计价单位 |
+| Key | Product | Unit |
 | --- | --- | --- |
-| `cny-gold` | 人民币账户黄金 | 元/克 |
-| `cny-silver` | 人民币账户白银 | 元/克 |
-| `cny-platinum` | 人民币账户铂金 | 元/克 |
-| `cny-palladium` | 人民币账户钯金 | 元/克 |
-| `usd-gold` | 美元账户黄金 | 美元/盎司 |
-| `usd-silver` | 美元账户白银 | 美元/盎司 |
-| `usd-platinum` | 美元账户铂金 | 美元/盎司 |
-| `usd-palladium` | 美元账户钯金 | 美元/盎司 |
+| `cny-gold` | CNY account gold | CNY/gram |
+| `cny-silver` | CNY account silver | CNY/gram |
+| `cny-platinum` | CNY account platinum | CNY/gram |
+| `cny-palladium` | CNY account palladium | CNY/gram |
+| `usd-gold` | USD account gold | USD/ounce |
+| `usd-silver` | USD account silver | USD/ounce |
+| `usd-platinum` | USD account platinum | USD/ounce |
+| `usd-palladium` | USD account palladium | USD/ounce |
 
-涨跌颜色遵循 A 股习惯：涨红、跌绿。
+The UI follows the convention commonly used in Chinese markets: red indicates an increase and green indicates a decrease.
 
 ## HTTP API
 
-所有接口均为动态响应，不使用 Next.js 缓存。
+All endpoints are dynamic and opt out of Next.js response caching.
 
-| 方法 | 路径 | 说明 |
+| Method | Endpoint | Description |
 | --- | --- | --- |
-| GET | `/api/prices/latest` | 最近一次持久化快照、迷你走势、品种元数据和库存统计 |
-| GET | `/api/prices/now` | 直接请求 ICBC 的实时价格，不写入 SQLite |
-| GET | `/api/prices/history?metal=cny-gold&range=24h` | 指定品种和区间的历史序列 |
-| GET | `/api/prices/metals` | 品种元数据和库存统计 |
+| GET | `/api/prices/latest` | Latest persisted snapshot, sparklines, product metadata, and storage coverage |
+| GET | `/api/prices/now` | Direct live-price request with a short server-side cache; does not write to SQLite |
+| GET | `/api/prices/history?metal=cny-gold&range=24h` | Historical series for a product and time range |
+| GET | `/api/prices/metals` | Product metadata and storage coverage |
 
-历史查询参数：
+History parameters:
 
-- `metal`：上表中的品种 Key，默认 `cny-gold`；未知值返回 HTTP 400。
-- `range`：`1h | 6h | 24h | 7d | 30d | 90d | all`，无效值回退到 `24h`。
+- `metal`: one of the product keys listed above; defaults to `cny-gold`. Unknown values return HTTP 400.
+- `range`: `1h | 6h | 24h | 7d | 30d | 90d | all`. Invalid values fall back to `24h`.
 
-`/api/prices/now` 只用于页面的“立即刷新”。它不会改变已保存的最新快照，下一次普通自动刷新仍以采集器写入的数据为准。服务端默认缓存成功结果 10 秒，并合并同时发生的请求；上游失败后也会进入同样时长的冷却，期间返回 HTTP 503 和 `Retry-After`。
+`/api/prices/now` is used by the dashboard's “refresh now” action. It does not update the persisted latest snapshot. Successful results are cached for 10 seconds by default, and concurrent requests share a single upstream request. After an upstream failure, the endpoint enters a cooldown for the same duration and returns HTTP 503 with a `Retry-After` header.
 
-## 环境变量
+## Environment Variables
 
-| 变量 | 默认值 | 说明 |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `PORT` | `3000` | 服务端口 |
-| `DATA_DIR` | `./data` | SQLite 文件目录；Docker 中为 `/app/data` |
-| `DB_PATH` | `<DATA_DIR>/gold.sqlite` | 显式指定数据库文件路径 |
-| `POLL_INTERVAL_SECONDS` | `30` | 采集间隔，最小 5 秒 |
-| `POLL_TIMEOUT_MS` | `8000` | 单次上游请求超时 |
-| `POLL_JITTER_RATIO` | `0.15` | 采集间隔随机抖动比例，范围 0～0.5 |
-| `NOW_CACHE_SECONDS` | `10` | 实时接口缓存及失败冷却时长，范围 1～300 秒 |
-| `RAW_RETENTION_HOURS` | `72` | 高频明细保留时长 |
-| `MAINTENANCE_INTERVAL_MINUTES` | `60` | 聚合及清理周期 |
-| `MAX_HISTORY_POINTS` | `400` | 历史接口目标最大点数 |
-| `ICBC_URL` | ICBC 行情接口 | 覆盖上游地址，便于使用代理或测试服务 |
-| `USER_AGENT` | 桌面 Chrome UA | 请求上游时使用的 User-Agent |
-| `DISABLE_LEGACY_TLS` | `false` | 设为 `true` 时关闭旧版 TLS 兼容 |
+| `PORT` | `3000` | Server port |
+| `DATA_DIR` | `./data` | SQLite directory; `/app/data` in Docker |
+| `DB_PATH` | `<DATA_DIR>/gold.sqlite` | Explicit SQLite database path |
+| `POLL_INTERVAL_SECONDS` | `30` | Polling interval; minimum 5 seconds |
+| `POLL_TIMEOUT_MS` | `8000` | Timeout for an upstream request |
+| `POLL_JITTER_RATIO` | `0.15` | Random polling jitter ratio, from 0 to 0.5 |
+| `NOW_CACHE_SECONDS` | `10` | Live endpoint cache and failure cooldown, from 1 to 300 seconds |
+| `RAW_RETENTION_HOURS` | `72` | High-frequency snapshot retention |
+| `MAINTENANCE_INTERVAL_MINUTES` | `60` | Aggregation and cleanup interval |
+| `MAX_HISTORY_POINTS` | `400` | Target maximum number of historical response points |
+| `ICBC_URL` | ICBC price endpoint | Override the upstream URL for a proxy or test service |
+| `USER_AGENT` | Desktop Chrome UA | User-Agent sent to ICBC |
+| `DISABLE_LEGACY_TLS` | `false` | Set to `true` to disable legacy TLS compatibility |
 
-数值配置会在 `src/lib/config.ts` 中进行合法性检查和上下限约束。
+Numeric configuration is validated and clamped to safe ranges in `src/lib/config.ts`.
 
-### ICBC TLS 兼容
+### ICBC TLS Compatibility
 
-默认 ICBC 接口需要 OpenSSL 的 legacy server connect。现代 Node.js 默认会拒绝这种旧版重协商，本项目通过全局 `undici` dispatcher 放开该兼容选项，但仍然校验证书。
+The default ICBC endpoint requires OpenSSL legacy server connect. Modern Node.js versions reject this old renegotiation mode by default. This project enables the compatibility option through a global `undici` dispatcher while continuing to validate the server certificate.
 
-只有当 `ICBC_URL` 指向支持现代 TLS 的代理或测试服务时，才应设置：
+Only disable the compatibility option when `ICBC_URL` points to a proxy or test service with modern TLS:
 
 ```bash
 DISABLE_LEGACY_TLS=true
 ```
 
-## Docker 部署
+## Docker
 
-推荐使用 Compose，它会创建命名卷保存 SQLite 数据：
+Docker Compose is recommended because it creates a named volume for SQLite:
 
 ```bash
 docker compose up -d --build
@@ -146,18 +150,18 @@ docker compose logs -f
 docker compose down
 ```
 
-`docker compose down` 不会删除数据；`docker compose down -v` 会删除命名卷和其中的数据。
+`docker compose down` preserves the data. `docker compose down -v` deletes the named volume and its data.
 
-也可以手动运行：
+You can also run the image directly:
 
 ```bash
 docker build -t gold-price .
 docker run -p 3000:3000 -v gold-data:/app/data gold-price
 ```
 
-镜像以非 root 用户运行。Docker 健康检查每 30 秒请求一次 `/api/prices/latest`，因此也会在容器启动后触发采集器懒启动。
+The image runs as a non-root user. Its health check requests `/api/prices/latest` every 30 seconds, which also triggers lazy poller initialization after the container starts.
 
-多架构构建：
+Build and push a multi-architecture image:
 
 ```bash
 docker buildx build \
@@ -166,9 +170,9 @@ docker buildx build \
   --push .
 ```
 
-## 备份与恢复
+## Backup and Restore
 
-服务使用 SQLite WAL 模式，运行期间不要只复制主数据库文件。使用项目提供的在线备份脚本：
+The service uses SQLite WAL mode, so do not copy only the main database file while the service is running. Use the online backup script:
 
 ```bash
 mkdir -p backups
@@ -179,43 +183,44 @@ docker run --rm --user "$(id -u):$(id -g)" \
   gold-price node /app/backup.mjs /backup/gold.sqlite
 ```
 
-恢复时先停止服务，将备份覆盖到数据卷中的 `gold.sqlite`，并移除旧的 `gold.sqlite-wal` 和 `gold.sqlite-shm`。具体检查和恢复提示见 `scripts/backup.mjs`。
+To restore a backup, stop the service, replace `gold.sqlite` in the data volume, and remove old `gold.sqlite-wal` and `gold.sqlite-shm` files. See `scripts/backup.mjs` for additional checks and restore notes.
 
-## 目录结构
+## Project Layout
 
 ```text
 src/
   app/
     api/prices/        API Route Handlers
-    page.tsx           行情看板页面
-    globals.css        全局样式
-  components/          价格卡、走势图、区间切换等组件
+    page.tsx           Dashboard page
+    globals.css        Global styles
+  components/          Price cards, charts, and range controls
   lib/
-    bootstrap.ts       TLS 初始化及采集器懒启动
-    config.ts          环境变量配置
-    db.ts              SQLite schema、读写、聚合及清理
-    icbc.ts            ICBC 请求客户端
-    metals.ts          品种映射和展示元数据
-    poller.ts          后台轮询与失败退避
+    bootstrap.ts       TLS setup and lazy poller initialization
+    config.ts          Environment configuration
+    db.ts              SQLite schema, queries, aggregation, and cleanup
+    icbc.ts            ICBC API client
+    metals.ts          Product mapping and display metadata
+    poller.ts          Background polling and failure backoff
 scripts/
-  backup.mjs           SQLite 在线备份
-AGENTS.md              Codex/开发代理工作指南
-Dockerfile             生产镜像
-docker-compose.yml     本地容器部署
+  backup.mjs           Online SQLite backup
+AGENTS.md              Codex/development-agent guide
+README.zh-CN.md        Chinese documentation
+Dockerfile             Production image
+docker-compose.yml     Container deployment
 ```
 
-## 开发说明
+## Development
 
-详细的代码导航、关键不变量、常见修改路径和交付前验证清单见 [AGENTS.md](./AGENTS.md)。
+See [AGENTS.md](./AGENTS.md) for code navigation, architectural constraints, common change paths, and the delivery checklist.
 
-当前仓库没有自动化测试套件。提交修改前至少运行：
+The repository currently has no automated test suite. Before submitting code changes, run:
 
 ```bash
-npm run lint
+npx tsc --noEmit
 npm run build
 ```
 
-涉及采集、数据库或 API 的改动还应使用独立的临时 `DATA_DIR` 做一次运行验证，避免污染真实行情数据。
+For changes involving collection, storage, or APIs, use a separate temporary `DATA_DIR` during runtime verification to avoid modifying real price data.
 
 ## License
 
