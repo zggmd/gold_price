@@ -1,94 +1,174 @@
 # 贵金属行情 · ICBC Gold Price
 
-定期采集工商银行账户贵金属实时报价（黄金 / 白银 / 铂金 / 钯金，人民币 & 美元），本地持久化，
-对外提供历史查询 API 与可视化看板。基于 **Next.js (App Router) + TypeScript + Tailwind**，
-数据存储采用 **SQLite (better-sqlite3)**，提供多架构 Dockerfile。
+一个自托管的工商银行账户贵金属行情采集与可视化服务。项目定时采集黄金、白银、铂金、钯金的人民币和美元报价，保存到 SQLite，并提供实时看板和历史查询 API。
 
-## 功能
+> 数据仅供展示，不构成投资建议。
 
-- **定时采集**：后台轮询 ICBC 接口，默认每 30 秒一次，写入 SQLite。
-- **两级存储（轻量 + 可扩展）**：
-  - `price_snapshots`：高频原始明细，按 `RAW_RETENTION_HOURS`（默认 72h）滚动清理，体积有上限。
-  - `price_hourly`：按小时聚合成 OHLC，永久保存，每年仅约 7 万行——即便运行数年也不膨胀。
-  - 维护任务周期性把已完成的小时明细折叠进聚合表，再清理过期明细。
-- **历史查询 API**：按品种 + 时间区间查询，服务端自动降采样，长周期也不会返回海量点。
-- **可视化看板**：八张实时价格卡片（含迷你走势线）、可交互的历史 K 线（自定义 SVG，鼠标悬停显示价格与时间）、品种与区间切换、自动刷新与「立即刷新」拉取实时价。
-- **反爬友好**：真实浏览器 UA / 中文 Accept-Language / Referer、请求抖动（jitter）、失败指数退避、单请求超时。
+## 功能概览
 
-## 接口
+- 采集 8 个账户贵金属品种：人民币/美元账户黄金、白银、铂金、钯金。
+- 后台默认每 30 秒拉取一次 ICBC 行情，支持超时、随机抖动和失败退避。
+- 首页展示最新价格、涨跌幅、迷你走势及可交互历史图表。
+- 支持 `1h`、`6h`、`24h`、`7d`、`30d`、`90d` 和全部历史区间。
+- 近期开盘明细与长期小时 OHLC 两级存储，控制 SQLite 数据规模。
+- 历史查询由服务端自动降采样，避免长周期返回过多数据。
+- 提供多阶段、多架构 Docker 镜像及 SQLite 在线备份脚本。
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/api/prices/latest` | 最近一次采集快照（全部品种）+ 迷你走势 + 库存统计 |
-| GET | `/api/prices/now` | 实时透传 ICBC（不走采集，供「立即刷新」） |
-| GET | `/api/prices/history?metal=cny-gold&range=24h` | 历史时序，`range` ∈ `1h 6h 24h 7d 30d 90d all` |
-| GET | `/api/prices/metals` | 品种元数据 + 库存统计 |
+## 技术栈
 
-`metal` 取值：`cny-gold cny-silver cny-platinum cny-palladium usd-gold usd-silver usd-platinum usd-palladium`。
+- Next.js 15（App Router）与 React 19
+- TypeScript
+- Tailwind CSS
+- SQLite 与 `better-sqlite3`
+- `undici`，用于配置 ICBC 接口所需的旧版 TLS 兼容
 
-## 本地开发
+## 快速开始
+
+环境要求：
+
+- Node.js 20+
+- npm
+
+安装依赖并启动开发服务：
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+npm run dev
 ```
 
-采集器在**首次请求接口时**自动启动（见 `src/lib/bootstrap.ts`，由 API 路由以副作用方式引入）。
-因此打开页面或访问任意 `/api/prices/*` 即会触发首次采集，随后按间隔轮询。
+访问 <http://localhost:3000>。首次请求任意 `/api/prices/*` 接口时会启动后台采集器并立即执行一次采集，因此刚打开页面时可能短暂显示“等待采集”。
 
-构建生产包：
+常用命令：
 
 ```bash
-npm run build        # 采集器在首次请求时才启动，构建期间不会联网
-npm start
+npm run dev       # 启动开发服务器
+npm run lint      # 运行 Next.js lint
+npm run build     # 创建生产构建
+npm start         # 启动已构建的生产服务
 ```
 
-## 配置（环境变量）
+运行时数据默认写入 `./data/gold.sqlite`。`data/`、备份、日志和本地环境变量文件均已被 Git 忽略。
+
+## 系统架构
+
+```text
+ICBC 行情接口
+      │
+      ▼
+poller：拉取、校验、标准化
+      │
+      ▼
+SQLite
+  ├─ price_snapshots：近期高频明细
+  └─ price_hourly：长期小时 OHLC
+      │
+      ▼
+Next.js Route Handlers
+      │
+      ▼
+React 行情看板
+```
+
+采集器采用懒启动方式：API 路由导入 `src/lib/bootstrap.ts`，后者在当前 Node.js 进程中只启动一个轮询循环。构建阶段不会访问 ICBC。
+
+默认保留最近 72 小时的高频明细。维护任务将所有已完成小时聚合为 OHLC 后，再清理超期明细；小时数据长期保留。SQLite 使用 WAL 模式，以支持采集写入期间的并发查询。
+
+## 支持的品种
+
+| Key | 品种 | 计价单位 |
+| --- | --- | --- |
+| `cny-gold` | 人民币账户黄金 | 元/克 |
+| `cny-silver` | 人民币账户白银 | 元/克 |
+| `cny-platinum` | 人民币账户铂金 | 元/克 |
+| `cny-palladium` | 人民币账户钯金 | 元/克 |
+| `usd-gold` | 美元账户黄金 | 美元/盎司 |
+| `usd-silver` | 美元账户白银 | 美元/盎司 |
+| `usd-platinum` | 美元账户铂金 | 美元/盎司 |
+| `usd-palladium` | 美元账户钯金 | 美元/盎司 |
+
+涨跌颜色遵循 A 股习惯：涨红、跌绿。
+
+## HTTP API
+
+所有接口均为动态响应，不使用 Next.js 缓存。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/prices/latest` | 最近一次持久化快照、迷你走势、品种元数据和库存统计 |
+| GET | `/api/prices/now` | 直接请求 ICBC 的实时价格，不写入 SQLite |
+| GET | `/api/prices/history?metal=cny-gold&range=24h` | 指定品种和区间的历史序列 |
+| GET | `/api/prices/metals` | 品种元数据和库存统计 |
+
+历史查询参数：
+
+- `metal`：上表中的品种 Key，默认 `cny-gold`；未知值返回 HTTP 400。
+- `range`：`1h | 6h | 24h | 7d | 30d | 90d | all`，无效值回退到 `24h`。
+
+`/api/prices/now` 只用于页面的“立即刷新”。它不会改变已保存的最新快照，下一次普通自动刷新仍以采集器写入的数据为准。服务端默认缓存成功结果 10 秒，并合并同时发生的请求；上游失败后也会进入同样时长的冷却，期间返回 HTTP 503 和 `Retry-After`。
+
+## 环境变量
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `PORT` | `3000` | 服务端口 |
-| `DATA_DIR` | `./data` | SQLite 文件目录（Docker 中挂载为卷） |
+| `DATA_DIR` | `./data` | SQLite 文件目录；Docker 中为 `/app/data` |
 | `DB_PATH` | `<DATA_DIR>/gold.sqlite` | 显式指定数据库文件路径 |
-| `POLL_INTERVAL_SECONDS` | `30` | 采集间隔（秒），下限 5s，防止误配置打爆上游 |
-| `POLL_TIMEOUT_MS` | `8000` | 单次请求超时 |
-| `POLL_JITTER_RATIO` | `0.15` | ±15% 随机抖动，避免固定节奏被识别为恶意 |
-| `RAW_RETENTION_HOURS` | `72` | 原始明细保留时长（小时），超期折叠为小时聚合后清理 |
-| `MAINTENANCE_INTERVAL_MINUTES` | `60` | 聚合 / 清理任务执行间隔 |
-| `MAX_HISTORY_POINTS` | `400` | 历史 API 返回点数上限（服务端降采样） |
-| `ICBC_URL` | 工行接口 | 可替换为代理地址 |
-| `USER_AGENT` | 桌面 Chrome | 请求 UA |
-| `DISABLE_LEGACY_TLS` | `false` | 设为 `true` 关闭对 ICBC 旧版 TLS 重协商的兼容（仅当 ICBC_URL 指向现代代理时使用） |
+| `POLL_INTERVAL_SECONDS` | `30` | 采集间隔，最小 5 秒 |
+| `POLL_TIMEOUT_MS` | `8000` | 单次上游请求超时 |
+| `POLL_JITTER_RATIO` | `0.15` | 采集间隔随机抖动比例，范围 0～0.5 |
+| `NOW_CACHE_SECONDS` | `10` | 实时接口缓存及失败冷却时长，范围 1～300 秒 |
+| `RAW_RETENTION_HOURS` | `72` | 高频明细保留时长 |
+| `MAINTENANCE_INTERVAL_MINUTES` | `60` | 聚合及清理周期 |
+| `MAX_HISTORY_POINTS` | `400` | 历史接口目标最大点数 |
+| `ICBC_URL` | ICBC 行情接口 | 覆盖上游地址，便于使用代理或测试服务 |
+| `USER_AGENT` | 桌面 Chrome UA | 请求上游时使用的 User-Agent |
+| `DISABLE_LEGACY_TLS` | `false` | 设为 `true` 时关闭旧版 TLS 兼容 |
 
-> **关于 TLS**：ICBC 的接口需要 OpenSSL 的「legacy server connect」(unsafe legacy renegotiation)，
-> 现代 Node 默认关闭，直接 `fetch` 会报 `ERR_SSL_UNSAFE_LEGACY_RENEGOTIATION_DISABLED`。
-> 本项目通过全局 undici dispatcher 启用该选项（仍校验证书，仅放开旧版重协商），见 `src/lib/legacy-tls.ts`。
+数值配置会在 `src/lib/config.ts` 中进行合法性检查和上下限约束。
 
-## Docker
+### ICBC TLS 兼容
 
-> **数据持久化**：数据存在 SQLite 文件里，**不在镜像中**。重新 `docker build` 不会丢数据；
-> 但 **删除/重建容器**（`docker rm`、`docker run --rm`）默认会丢——因为不显式挂载时
-> Dockerfile 的 `VOLUME ["/app/data"]` 会建一个随容器销毁的**匿名卷**。
-> 所以一定要显式挂载命名卷或绑定挂载（见下方 `docker-compose.yml`）。
+默认 ICBC 接口需要 OpenSSL 的 legacy server connect。现代 Node.js 默认会拒绝这种旧版重协商，本项目通过全局 `undici` dispatcher 放开该兼容选项，但仍然校验证书。
 
-推荐用 compose（自带命名卷 + 重启策略）：
+只有当 `ICBC_URL` 指向支持现代 TLS 的代理或测试服务时，才应设置：
 
 ```bash
-docker compose up -d --build    # 构建并启动，数据落在 gold-data 命名卷
-docker compose down             # 停止，数据保留（除非加 -v）
+DISABLE_LEGACY_TLS=true
 ```
 
-手动 `docker run` 时记得挂卷：
+## Docker 部署
+
+推荐使用 Compose，它会创建命名卷保存 SQLite 数据：
+
+```bash
+docker compose up -d --build
+docker compose logs -f
+docker compose down
+```
+
+`docker compose down` 不会删除数据；`docker compose down -v` 会删除命名卷和其中的数据。
+
+也可以手动运行：
 
 ```bash
 docker build -t gold-price .
-# 命名卷（推荐，容器删了数据还在）
 docker run -p 3000:3000 -v gold-data:/app/data gold-price
-# 或绑定挂载到宿主机目录，方便直接拷贝
-docker run -p 3000:3000 -v /opt/gold-data:/app/data gold-price
 ```
 
-**备份与恢复**（在线热备，WAL 模式下比直接拷文件安全）：
+镜像以非 root 用户运行。Docker 健康检查每 30 秒请求一次 `/api/prices/latest`，因此也会在容器启动后触发采集器懒启动。
+
+多架构构建：
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/yourorg/gold-price:latest \
+  --push .
+```
+
+## 备份与恢复
+
+服务使用 SQLite WAL 模式，运行期间不要只复制主数据库文件。使用项目提供的在线备份脚本：
 
 ```bash
 mkdir -p backups
@@ -99,40 +179,44 @@ docker run --rm --user "$(id -u):$(id -g)" \
   gold-price node /app/backup.mjs /backup/gold.sqlite
 ```
 
-`--user` 让容器以你的宿主机 UID 运行，这样非 root 的镜像才能把备份写进你拥有的目录。
-
-恢复时停掉服务，把备份覆盖回卷里的 `gold.sqlite`（并删掉 `-wal`/`-shm`），见 `scripts/backup.mjs` 注释。
-
-多架构构建并推送（需要 buildx）：
-
-```bash
-docker buildx create --use --name multiarch   # 仅首次
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/yourorg/gold-price:latest \
-  --push .
-```
-
-- 镜像采用多阶段构建 + Next.js `standalone` 输出，运行镜像精简。
-- `better-sqlite3` 原生模块在构建阶段按目标架构编译，arm64 经 buildx 处理。
-- **外置存储**：把 SQLite 文件放到网络盘/云盘只需挂载该目录并设 `DB_PATH`
-  （如 NFS / 阿里云 NAS / AWS EFS）。当前不支持独立的 Postgres/MySQL 服务，需要时可在此基础上加存储抽象层。
+恢复时先停止服务，将备份覆盖到数据卷中的 `gold.sqlite`，并移除旧的 `gold.sqlite-wal` 和 `gold.sqlite-shm`。具体检查和恢复提示见 `scripts/backup.mjs`。
 
 ## 目录结构
 
-```
+```text
 src/
   app/
-    api/prices/{latest,now,history,metals}/route.ts   接口
-    layout.tsx page.tsx globals.css                    页面
-  components/   PriceCard / HistoryChart / Sparkline / RangeTabs
-  lib/          config / types / metals / db / icbc / poller / legacy-tls / format / bootstrap
-  bootstrap.ts         首次请求时配置 TLS 并拉起后台采集器（替代 instrumentation，兼容 dev）
-Dockerfile              多阶段、多架构
+    api/prices/        API Route Handlers
+    page.tsx           行情看板页面
+    globals.css        全局样式
+  components/          价格卡、走势图、区间切换等组件
+  lib/
+    bootstrap.ts       TLS 初始化及采集器懒启动
+    config.ts          环境变量配置
+    db.ts              SQLite schema、读写、聚合及清理
+    icbc.ts            ICBC 请求客户端
+    metals.ts          品种映射和展示元数据
+    poller.ts          后台轮询与失败退避
+scripts/
+  backup.mjs           SQLite 在线备份
+AGENTS.md              Codex/开发代理工作指南
+Dockerfile             生产镜像
+docker-compose.yml     本地容器部署
 ```
 
-## 说明
+## 开发说明
 
-- 价格涨跌配色遵循 A 股惯例：**涨红跌绿**（与 ICBC 返回的 `textColor` 语义一致）。
-- 数据仅供展示，不构成投资建议。
-- 主要代码通过 Claude Code 配合 GLM-5.2 生成
+详细的代码导航、关键不变量、常见修改路径和交付前验证清单见 [AGENTS.md](./AGENTS.md)。
+
+当前仓库没有自动化测试套件。提交修改前至少运行：
+
+```bash
+npm run lint
+npm run build
+```
+
+涉及采集、数据库或 API 的改动还应使用独立的临时 `DATA_DIR` 做一次运行验证，避免污染真实行情数据。
+
+## License
+
+[MIT](./LICENSE)

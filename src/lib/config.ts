@@ -42,6 +42,12 @@ export const config = {
   pollTimeoutMs: num('POLL_TIMEOUT_MS', 8_000, 1_000, 60_000),
 
   /**
+   * Successful /api/prices/now responses are reused for this many seconds.
+   * The same window is used as a short retry cooldown after an upstream error.
+   */
+  nowCacheSeconds: num('NOW_CACHE_SECONDS', 10, 1, 300),
+
+  /**
    * ± jitter ratio applied to every schedule. 0.15 means each tick lands
    * somewhere in [interval*0.85, interval*1.15]. Randomized spacing reads far
    * less like a fixed-cron bot to upstream WAFs.
