@@ -2,6 +2,22 @@
 
 本文件是 Codex 及其他开发代理在本仓库中工作的项目级指南。README 面向使用者；这里重点记录代码边界、关键不变量、推荐工作流和验证要求。
 
+## Agent Quick Start
+
+开始修改前先执行：
+
+```bash
+git status --short
+rg --files -g '!node_modules' -g '!data' -g '!backups'
+```
+
+- 工作区可能已有用户改动；不要覆盖、回退或顺手格式化与当前任务无关的文件。
+- 先阅读与任务直接相关的 Route Handler、`src/lib` 实现和领域类型，再修改调用方。
+- 查找代码优先使用 `rg`。不要扫描或输出数据库、备份、日志、环境文件中的内容。
+- 运行时验证和 `next build` 必须使用独立的临时数据库；不要让开发服务或构建 worker 接触默认 `./data` 中的真实数据。
+- 默认不要请求真实 ICBC 上游来验证解析或重试逻辑；使用本地 mock 并通过 `ICBC_URL` 指向它。
+- 保持改动聚焦。只有用户可见行为、配置或架构约束变化时，才同步更新相应文档。
+
 ## Project Goal
 
 本项目采集工商银行账户贵金属报价，将近期高频数据和长期小时聚合写入 SQLite，并通过 Next.js API 与 React 看板提供查询和展示。
@@ -13,9 +29,20 @@
 - Next.js App Router 同时承载前端和 Route Handlers。
 - 所有价格路由运行在 Node.js runtime；`better-sqlite3` 不能用于 Edge runtime。
 - `src/lib/bootstrap.ts` 通过模块副作用启用 TLS 兼容并启动采集器。
-- 采集器在第一次请求 `/api/prices/*` 时启动，而不是在 `next build` 时启动。
+- 正常服务中，采集器在第一次请求 `/api/prices/*` 时启动。
+- 当前 `next build` 的路由数据收集也会求值 Route Handler 导入，从而在多个构建 worker 中触发 bootstrap。构建并非无副作用；必须隔离 `DATA_DIR` 和 `ICBC_URL`。这是现有实现的已知缺陷，不要依赖 Dockerfile 中“构建不会启动采集器”的旧注释。
 - `globalThis.__goldBootstrapped` 用于避免开发环境 HMR 创建重复轮询器。
 - 一个服务进程只应存在一个采集循环。当前架构不适合无协调地启动多个副本写同一个数据库。
+
+关键数据流：
+
+```text
+ICBC -> fetchIcbcPrices -> pollOnce normalization
+     -> insertSnapshot transaction -> SQLite
+     -> Route Handlers -> client page/components
+```
+
+“立即刷新”是例外路径：`/api/prices/now` 直接读取 ICBC 并只更新当前浏览器页面状态，不调用 `insertSnapshot`。首页的定时自动刷新只读取 `/api/prices/latest` 中已经持久化的数据。
 
 ## Code Map
 
@@ -32,6 +59,19 @@
 | `src/app/page.tsx` | 首页状态、自动刷新和数据编排 |
 | `src/components/*` | 无服务端副作用的展示组件 |
 | `scripts/backup.mjs` | SQLite 在线备份 |
+
+## API Contracts
+
+所有价格 Route Handler 都显式使用动态响应并导入 `@/lib/bootstrap`。新增同类路由时必须确认它运行在 Node.js 环境，且不要把数据库代码导入 client component。
+
+| 路由 | 关键行为 |
+| --- | --- |
+| `GET /api/prices/latest` | 返回最新完整批次、静态品种元数据、每品种 48 个近期点及覆盖信息；空库返回空价格数组 |
+| `GET /api/prices/now` | 直接读上游，不落库；成功缓存、并发合并、失败冷却均保存在进程级 `globalThis` 缓存中 |
+| `GET /api/prices/history` | `metal` 默认 `cny-gold`，未知品种返回 400；非法 `range` 回退到 `24h` |
+| `GET /api/prices/metals` | 返回静态品种元数据和数据库覆盖信息 |
+
+历史区间固定为 `1h | 6h | 24h | 7d | 30d | 90d | all`。若修改区间，需要同时检查 Route Handler、`RangeTabs`、页面的图表跨度映射和 README。
 
 ## Domain Invariants
 
@@ -63,6 +103,7 @@ SQLite 使用 WAL、`synchronous=NORMAL` 和 5 秒 `busy_timeout`。开发或测
 - 不要提交 `.sqlite`、`-wal`、`-shm` 或备份文件。
 - 不要直接复制正在运行的 WAL 数据库；使用 `scripts/backup.mjs`。
 - schema 目前通过 `CREATE TABLE IF NOT EXISTS` 初始化，没有迁移框架。任何不向后兼容的 schema 修改都必须同时设计升级路径。
+- `DB_PATH` 只覆盖数据库文件路径；当前初始化仍会创建 `DATA_DIR`。测试自定义 `DB_PATH` 时，两个路径都应指向安全的临时位置。
 
 ## Upstream Etiquette
 
@@ -138,6 +179,8 @@ DATA_DIR=/tmp/gold-price-dev npm run dev
 
 不要在脚本或代码中假设开发端口固定可用；`PORT` 可以覆盖默认值。
 
+配置值以 `src/lib/config.ts` 为唯一事实来源。数值配置会被静默回退或限制到安全范围；修改默认值或上下限时同步更新两个 README。`PORT` 虽由配置模块读取，但 Next.js 进程端口仍由启动命令的环境变量决定。
+
 ## Validation
 
 仓库当前没有自动化测试套件。根据改动范围执行相称的验证。
@@ -145,9 +188,17 @@ DATA_DIR=/tmp/gold-price-dev npm run dev
 所有代码改动的最低要求：
 
 ```bash
-npm run lint
-npm run build
+npx tsc --noEmit
+build_data_dir="$(mktemp -d)"
+DATA_DIR="$build_data_dir" \
+  ICBC_URL="http://127.0.0.1:9/unavailable-during-build" \
+  DISABLE_LEGACY_TLS=true \
+  npm run build
 ```
+
+`npm run lint` 当前调用已弃用的 `next lint`，且在没有 ESLint 配置时会进入交互式初始化，因此不能作为无人值守验证。不要在未获任务授权时仅为消除该提示而引入一整套 lint 配置；若项目以后完成迁移，再恢复 lint 为最低检查。
+
+构建日志中目前可能出现 poller 启动和预期的本地连接失败；关键要求是不得访问真实上游或默认数据库。若任务涉及启动架构，应优先消除这个构建期副作用，并同步修正 Dockerfile 和 README 的相关说明。
 
 涉及 API、采集或数据库时，还要验证：
 
@@ -192,6 +243,7 @@ docker run --rm -p 3000:3000 -v gold-price-test:/app/data gold-price
 
 - 改动没有意外包含数据库、日志、备份或环境文件。
 - 没有修改与任务无关的用户工作区内容。
-- lint 和 build 已通过，或清楚说明未运行/失败原因。
+- TypeScript 检查和 build 已通过，或清楚说明未运行/失败原因。
 - 数据模型、API 或配置变化已经同步到文档。
+- 开发和验证完成后，自动提交本次任务相关改动并推送到 GitHub 的当前分支；不要提交用户已有的无关改动。若提交或推送失败，在交付说明中报告具体原因和仍未推送的提交。
 - 交付说明包含改动摘要、验证结果和剩余风险。
