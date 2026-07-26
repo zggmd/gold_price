@@ -1,8 +1,12 @@
 // Number/time formatting helpers shared by server and client.
 
-export function formatPrice(value: number, precision: number): string {
+export function formatPrice(
+  value: number,
+  precision: number,
+  locale = 'zh-CN',
+): string {
   if (!Number.isFinite(value)) return '--';
-  return value.toLocaleString('zh-CN', {
+  return value.toLocaleString(locale, {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision,
   });
@@ -27,9 +31,12 @@ export function rateArrow(rate: number | null): string {
   return '';
 }
 
-export function formatClock(ms: number | null | undefined): string {
+export function formatClock(
+  ms: number | null | undefined,
+  locale = 'zh-CN',
+): string {
   if (!ms) return '--';
-  return new Date(ms).toLocaleString('zh-CN', {
+  return new Date(ms).toLocaleString(locale, {
     hour12: false,
     month: '2-digit',
     day: '2-digit',
@@ -39,16 +46,20 @@ export function formatClock(ms: number | null | undefined): string {
   });
 }
 
-export function formatAxisTime(ms: number, spanDays: number): string {
+export function formatAxisTime(
+  ms: number,
+  spanDays: number,
+  locale = 'zh-CN',
+): string {
   const d = new Date(ms);
   if (spanDays > 2) {
-    return d.toLocaleString('zh-CN', {
+    return d.toLocaleString(locale, {
       hour12: false,
       month: '2-digit',
       day: '2-digit',
     });
   }
-  return d.toLocaleString('zh-CN', {
+  return d.toLocaleString(locale, {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',

@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 
+import PreferencesProvider from '@/components/PreferencesProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '实时贵金属行情 · ICBC 金价',
+  title: 'ICBC Precious Metals · 工商银行贵金属行情',
   description:
-    '工商银行账户贵金属实时与历史金价查询：黄金、白银、铂金、钯金（人民币 / 美元）。',
+    'Live and historical ICBC account precious-metal prices · 工商银行账户贵金属实时与历史行情。',
   applicationName: 'Gold Price Dashboard',
   icons: {
     icon:
@@ -22,16 +23,29 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const themeScript = `
+const preferencesScript = `
 (() => {
   try {
-    const saved = localStorage.getItem('gold-theme');
-    const mode = saved === 'light' || saved === 'dark' ? saved : 'system';
-    const theme = mode === 'system'
+    const savedTheme = localStorage.getItem('gold-theme');
+    const themeMode = savedTheme === 'light' || savedTheme === 'dark'
+      ? savedTheme
+      : 'system';
+    const theme = themeMode === 'system'
       ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : mode;
-    document.documentElement.dataset.themeMode = mode;
+      : themeMode;
+
+    const savedLocale = localStorage.getItem('gold-locale');
+    const localeMode = savedLocale === 'zh-CN' || savedLocale === 'en'
+      ? savedLocale
+      : 'system';
+    const locale = localeMode === 'system'
+      ? (navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en')
+      : localeMode;
+
+    document.documentElement.dataset.themeMode = themeMode;
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.localeMode = localeMode;
+    document.documentElement.lang = locale;
   } catch (_) {}
 })();
 `;
@@ -44,9 +58,11 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: preferencesScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <PreferencesProvider>{children}</PreferencesProvider>
+      </body>
     </html>
   );
 }

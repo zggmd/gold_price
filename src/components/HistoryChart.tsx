@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 
 import type { HistoryPoint } from '@/lib/types';
 import { formatAxisTime, formatPrice, formatRate } from '@/lib/format';
+import { usePreferences } from './PreferencesProvider';
 
 interface HistoryChartProps {
   points: HistoryPoint[];
@@ -26,6 +27,7 @@ export default function HistoryChart({
   spanDays,
   loading,
 }: HistoryChartProps) {
+  const { locale, t } = usePreferences();
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -113,7 +115,7 @@ export default function HistoryChart({
         onMouseMove={handleMove}
         onMouseLeave={() => setHover(null)}
         role="img"
-        aria-label="历史价格走势"
+        aria-label={t('chartLabel')}
       >
         <defs>
           <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
@@ -142,7 +144,7 @@ export default function HistoryChart({
                 className="tnum fill-[var(--muted-soft)]"
                 fontSize={11}
               >
-                {formatPrice(v, precision)}
+                {formatPrice(v, precision, locale)}
               </text>
             </g>
           );
@@ -158,7 +160,7 @@ export default function HistoryChart({
             className="fill-[var(--muted-soft)]"
             fontSize={11}
           >
-            {formatAxisTime(points[idx].t, spanDays)}
+            {formatAxisTime(points[idx].t, spanDays, locale)}
           </text>
         ))}
 
@@ -198,10 +200,10 @@ export default function HistoryChart({
                 stroke="var(--border-strong)"
               />
               <text x={10} y={19} className="tnum fill-[var(--text-strong)]" fontSize={13} fontWeight={600}>
-                {formatPrice(h.price, precision)} {unit}
+                {formatPrice(h.price, precision, locale)} {unit}
               </text>
               <text x={10} y={36} className="fill-[var(--muted)]" fontSize={11}>
-                {formatAxisTime(h.t, spanDays)}
+                {formatAxisTime(h.t, spanDays, locale)}
               </text>
             </g>
           </g>
@@ -215,7 +217,7 @@ export default function HistoryChart({
             className="fill-[var(--muted-soft)]"
             fontSize={14}
           >
-            暂无历史数据，等待采集…
+            {t('noHistory')}
           </text>
         )}
       </svg>
@@ -223,7 +225,7 @@ export default function HistoryChart({
       {/* range change badge */}
       {deltaPct != null && (
         <div className="pointer-events-none absolute right-2 top-1 flex items-center gap-2 rounded-lg bg-[var(--surface-strong)] px-2.5 py-1 text-xs backdrop-blur">
-          <span className="text-[var(--muted)]">区间涨跌</span>
+          <span className="text-[var(--muted)]">{t('rangeChange')}</span>
           <span
             className={
               'tnum font-semibold ' +

@@ -12,6 +12,7 @@ A self-hosted ICBC account precious-metals price collector and dashboard. It per
 - Polls ICBC every 30 seconds by default, with request timeouts, randomized jitter, and failure backoff.
 - Displays current prices, change rates, sparklines, and an interactive historical chart.
 - Supports light, dark, and system-following themes, with the preference saved in the browser.
+- Supports Chinese, English, and automatic browser-language detection; language and theme preferences live in one settings menu.
 - Supports `1h`, `6h`, `24h`, `7d`, `30d`, `90d`, and all-time ranges.
 - Uses recent high-frequency snapshots plus long-term hourly OHLC storage to keep SQLite compact.
 - Downsamples historical responses on the server to avoid oversized payloads.

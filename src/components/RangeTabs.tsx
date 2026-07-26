@@ -1,5 +1,7 @@
 'use client';
 
+import { usePreferences } from './PreferencesProvider';
+
 interface RangeTabsProps {
   value: string;
   options: readonly string[];
@@ -7,6 +9,7 @@ interface RangeTabsProps {
 }
 
 export default function RangeTabs({ value, options, onChange }: RangeTabsProps) {
+  const { t } = usePreferences();
   return (
     <div className="inline-flex flex-wrap rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1 backdrop-blur">
       {options.map((opt) => {
@@ -23,7 +26,7 @@ export default function RangeTabs({ value, options, onChange }: RangeTabsProps) 
                 : 'text-[var(--muted)] hover:bg-[var(--control-active)] hover:text-[var(--text)]')
             }
           >
-            {opt}
+            {opt === 'all' ? t('all') : opt}
           </button>
         );
       })}

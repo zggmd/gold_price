@@ -2,6 +2,7 @@
 
 import type { HistoryPoint, LatestPrice } from '@/lib/types';
 import { formatPrice, formatRate, rateArrow, rateColor } from '@/lib/format';
+import { usePreferences } from './PreferencesProvider';
 import Sparkline from './Sparkline';
 
 interface PriceCardProps {
@@ -11,21 +12,27 @@ interface PriceCardProps {
   onSelect: (key: string) => void;
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  gold: '黄金',
-  silver: '白银',
-  platinum: '铂金',
-  palladium: '钯金',
-};
-
 export default function PriceCard({
   price,
   sparkline,
   selected,
   onSelect,
 }: PriceCardProps) {
+  const { locale, t } = usePreferences();
   const up = (price.upDownRate ?? 0) > 0;
   const down = (price.upDownRate ?? 0) < 0;
+  const typeLabel = t(price.type);
+  const productName = t(
+    `${price.currency.toLowerCase()}${price.type[0].toUpperCase()}${price.type.slice(1)}` as
+      | 'cnyGold'
+      | 'cnySilver'
+      | 'cnyPlatinum'
+      | 'cnyPalladium'
+      | 'usdGold'
+      | 'usdSilver'
+      | 'usdPlatinum'
+      | 'usdPalladium',
+  );
 
   return (
     <button
@@ -46,11 +53,11 @@ export default function PriceCard({
               style={{ backgroundColor: price.accent }}
             />
             <span className="truncate text-sm font-medium text-[var(--text)]">
-              {price.name}
+              {productName}
             </span>
           </div>
           <span className="mt-0.5 block text-[11px] text-[var(--muted-soft)]">
-            {TYPE_LABEL[price.type]} · {price.currency}
+            {typeLabel} · {price.currency}
           </span>
         </div>
         <span
@@ -65,9 +72,11 @@ export default function PriceCard({
       <div className="mt-3 flex items-end justify-between gap-2">
         <div className="min-w-0">
           <div className="tnum text-2xl font-semibold tracking-tight text-[var(--text-strong)]">
-            {formatPrice(price.price, price.precision)}
+            {formatPrice(price.price, price.precision, locale)}
           </div>
-          <div className="mt-0.5 text-[11px] text-[var(--muted-soft)]">{price.unit}</div>
+          <div className="mt-0.5 text-[11px] text-[var(--muted-soft)]">
+            {t(price.currency === 'CNY' ? 'cnyUnit' : 'usdUnit')}
+          </div>
         </div>
         <div className="w-[120px] shrink-0">
           {sparkline && sparkline.length > 1 && (

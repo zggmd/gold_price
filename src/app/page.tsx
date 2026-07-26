@@ -7,7 +7,9 @@ import { formatClock } from '@/lib/format';
 import PriceCard from '@/components/PriceCard';
 import HistoryChart from '@/components/HistoryChart';
 import RangeTabs from '@/components/RangeTabs';
-import ThemeSelector from '@/components/ThemeSelector';
+import SettingsMenu from '@/components/SettingsMenu';
+import { usePreferences } from '@/components/PreferencesProvider';
+import type { MessageKey } from '@/lib/i18n';
 
 const RANGE_OPTIONS = ['1h', '6h', '24h', '7d', '30d', '90d', 'all'] as const;
 const RANGE_DAYS: Record<string, number> = {
@@ -42,6 +44,7 @@ interface HistoryResponse {
 }
 
 export default function HomePage() {
+  const { locale, t } = usePreferences();
   const [metals, setMetals] = useState<MetalMeta[]>([]);
   const [prices, setPrices] = useState<LatestPrice[]>([]);
   const [sparklines, setSparklines] = useState<Record<string, HistoryPoint[]>>({});
@@ -139,11 +142,11 @@ export default function HomePage() {
       setLiveAt(data.fetchedAt);
       setError(null);
     } catch (err) {
-      setError('实时获取失败：' + (err instanceof Error ? err.message : String(err)));
+      setError(t('liveFailed') + ': ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   const pricesByKey = useMemo(
     () => new Map(prices.map((p) => [p.key, p])),
@@ -165,28 +168,28 @@ export default function HomePage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-strong)] sm:text-3xl">
-              贵金属行情
+              {t('title')}
             </h1>
             {autoRefresh && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-[var(--live-text)]">
                 <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                实时
+                {t('live')}
               </span>
             )}
           </div>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            工商银行账户贵金属 · 黄金 / 白银 / 铂金 / 钯金 · 数据自动采集
+            {t('subtitle')}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <ThemeSelector />
+          <SettingsMenu />
           <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-right">
             <div className="text-[11px] text-[var(--muted-soft)]">
-              {liveAt ? '实时获取' : '最近采集'}
+              {liveAt ? t('fetchedLive') : t('latestCollected')}
             </div>
             <div className="tnum text-sm font-medium text-[var(--text)]">
-              {formatClock(lastUpdated)}
+              {formatClock(lastUpdated, locale)}
             </div>
           </div>
           <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]">
@@ -196,7 +199,7 @@ export default function HomePage() {
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
             />
-            自动刷新
+            {t('autoRefresh')}
           </label>
           <button
             type="button"
@@ -204,7 +207,7 @@ export default function HomePage() {
             disabled={refreshing}
             className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {refreshing ? '获取中…' : '立即刷新'}
+            {refreshing ? t('refreshing') : t('refreshNow')}
           </button>
         </div>
       </header>
@@ -238,10 +241,10 @@ export default function HomePage() {
                         style={{ backgroundColor: m.accent }}
                       />
                       <span className="text-sm font-medium text-[var(--text)]">
-                        {m.name}
+                        {productName(m, t)}
                       </span>
                     </div>
-                    <div className="mt-4 text-sm">等待采集…</div>
+                    <div className="mt-4 text-sm">{t('waiting')}</div>
                   </div>
                 );
               }
@@ -261,12 +264,12 @@ export default function HomePage() {
       <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text-strong)]">历史走势</h2>
+            <h2 className="text-lg font-semibold text-[var(--text-strong)]">{t('history')}</h2>
             <p className="text-xs text-[var(--muted-soft)]">
-              点击上方卡片或下方标签切换品种 ·{' '}
+              {t('historyHint')} ·{' '}
               {historySource === 'merged'
-                ? '数据源：明细 + 小时聚合'
-                : '数据源：实时明细'}
+                ? t('sourceMerged')
+                : t('sourceRaw')}
             </p>
           </div>
           <RangeTabs
@@ -279,14 +282,14 @@ export default function HomePage() {
         {/* Metal selector */}
         <div className="mb-4 flex flex-wrap gap-2">
           <MetalGroup
-            label="人民币账户"
+            label={t('cnyAccount')}
             metals={cnyMetals}
             selected={selected}
             onSelect={setSelected}
           />
           <span className="mx-1 hidden items-center text-[var(--border-strong)] sm:flex">|</span>
           <MetalGroup
-            label="美元账户"
+            label={t('usdAccount')}
             metals={usdMetals}
             selected={selected}
             onSelect={setSelected}
@@ -298,7 +301,7 @@ export default function HomePage() {
             points={history}
             accent={selectedMeta.accent}
             precision={selectedMeta.precision}
-            unit={selectedMeta.unit}
+            unit={t(selectedMeta.currency === 'CNY' ? 'cnyUnit' : 'usdUnit')}
             spanDays={RANGE_DAYS[range] ?? 1}
             loading={historyLoading}
           />
@@ -308,14 +311,14 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-8 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-xs text-[var(--muted-soft)] sm:flex-row sm:items-center sm:justify-between">
         <div>
-          数据来源：中国工商银行 · 仅供展示，不构成投资建议
+          {t('sourceNotice')}
         </div>
         {coverage && (
           <div className="tnum">
-            明细 {coverage.rawCount.toLocaleString()} 条 · 聚合{' '}
-            {coverage.hourlyCount.toLocaleString()} 条
+            {t('rawRows')} {coverage.rawCount.toLocaleString(locale)} {t('rows')} ·{' '}
+            {t('hourlyRows')} {coverage.hourlyCount.toLocaleString(locale)} {t('rows')}
             {coverage.earliest
-              ? ' · 起始 ' + formatClock(coverage.earliest)
+              ? ` · ${t('since')} ${formatClock(coverage.earliest, locale)}`
               : ''}
           </div>
         )}
@@ -335,6 +338,7 @@ function MetalGroup({
   selected: string;
   onSelect: (key: string) => void;
 }) {
+  const { t } = usePreferences();
   if (metals.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -353,7 +357,7 @@ function MetalGroup({
                 : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-strong)]')
             }
           >
-            {shortName(m)}
+            {t(m.type)}
           </button>
         );
       })}
@@ -361,12 +365,11 @@ function MetalGroup({
   );
 }
 
-function shortName(m: MetalMeta): string {
-  const map: Record<string, string> = {
-    gold: '黄金',
-    silver: '白银',
-    platinum: '铂金',
-    palladium: '钯金',
-  };
-  return map[m.type] ?? m.name;
+function productName(
+  metal: MetalMeta,
+  t: (key: MessageKey) => string,
+): string {
+  const prefix = metal.currency.toLowerCase();
+  const type = metal.type[0].toUpperCase() + metal.type.slice(1);
+  return t(`${prefix}${type}` as MessageKey);
 }
