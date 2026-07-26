@@ -132,14 +132,14 @@ export default function HistoryChart({
                 x2={VBW - PAD.r}
                 y1={y}
                 y2={y}
-                stroke="rgba(148,163,184,0.12)"
+                stroke="var(--grid)"
                 strokeWidth={1}
               />
               <text
                 x={PAD.l - 8}
                 y={y + 4}
                 textAnchor="end"
-                className="tnum fill-slate-500"
+                className="tnum fill-[var(--muted-soft)]"
                 fontSize={11}
               >
                 {formatPrice(v, precision)}
@@ -155,7 +155,7 @@ export default function HistoryChart({
             x={xFor(idx)}
             y={VBH - 8}
             textAnchor="middle"
-            className="fill-slate-500"
+            className="fill-[var(--muted-soft)]"
             fontSize={11}
           >
             {formatAxisTime(points[idx].t, spanDays)}
@@ -184,23 +184,23 @@ export default function HistoryChart({
               x2={hx}
               y1={PAD.t}
               y2={baseY}
-              stroke="rgba(226,232,240,0.35)"
+              stroke="var(--guide)"
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            <circle cx={hx} cy={hy} r={4.5} fill={accent} stroke="#0a0e18" strokeWidth={2} />
+            <circle cx={hx} cy={hy} r={4.5} fill={accent} stroke="var(--page)" strokeWidth={2} />
             <g transform={`translate(${tipX},${tipY})`}>
               <rect
                 width={tipW}
                 height={tipH}
                 rx={8}
-                fill="rgba(15,23,42,0.96)"
-                stroke="rgba(148,163,184,0.3)"
+                fill="var(--tooltip)"
+                stroke="var(--border-strong)"
               />
-              <text x={10} y={19} className="tnum fill-white" fontSize={13} fontWeight={600}>
+              <text x={10} y={19} className="tnum fill-[var(--text-strong)]" fontSize={13} fontWeight={600}>
                 {formatPrice(h.price, precision)} {unit}
               </text>
-              <text x={10} y={36} className="fill-slate-400" fontSize={11}>
+              <text x={10} y={36} className="fill-[var(--muted)]" fontSize={11}>
                 {formatAxisTime(h.t, spanDays)}
               </text>
             </g>
@@ -212,7 +212,7 @@ export default function HistoryChart({
             x={VBW / 2}
             y={VBH / 2}
             textAnchor="middle"
-            className="fill-slate-500"
+            className="fill-[var(--muted-soft)]"
             fontSize={14}
           >
             暂无历史数据，等待采集…
@@ -222,8 +222,8 @@ export default function HistoryChart({
 
       {/* range change badge */}
       {deltaPct != null && (
-        <div className="pointer-events-none absolute right-2 top-1 flex items-center gap-2 rounded-lg bg-slate-900/70 px-2.5 py-1 text-xs backdrop-blur">
-          <span className="text-slate-400">区间涨跌</span>
+        <div className="pointer-events-none absolute right-2 top-1 flex items-center gap-2 rounded-lg bg-[var(--surface-strong)] px-2.5 py-1 text-xs backdrop-blur">
+          <span className="text-[var(--muted)]">区间涨跌</span>
           <span
             className={
               'tnum font-semibold ' +

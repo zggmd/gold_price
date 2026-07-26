@@ -34,8 +34,8 @@ export default function PriceCard({
       className={
         'group relative w-full overflow-hidden rounded-2xl border p-4 text-left transition ' +
         (selected
-          ? 'border-gold-400/70 bg-slate-800/80 shadow-lg shadow-black/40 ring-1 ring-gold-400/40'
-          : 'border-slate-800 bg-slate-900/60 hover:border-slate-600 hover:bg-slate-800/70')
+          ? 'border-gold-400/70 bg-[var(--surface-selected)] shadow-lg shadow-[var(--shadow)] ring-1 ring-gold-400/40'
+          : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-strong)]')
       }
     >
       <div className="flex items-start justify-between gap-2">
@@ -45,11 +45,11 @@ export default function PriceCard({
               className="inline-block h-2 w-2 rounded-full"
               style={{ backgroundColor: price.accent }}
             />
-            <span className="truncate text-sm font-medium text-slate-200">
+            <span className="truncate text-sm font-medium text-[var(--text)]">
               {price.name}
             </span>
           </div>
-          <span className="mt-0.5 block text-[11px] text-slate-500">
+          <span className="mt-0.5 block text-[11px] text-[var(--muted-soft)]">
             {TYPE_LABEL[price.type]} · {price.currency}
           </span>
         </div>
@@ -64,10 +64,10 @@ export default function PriceCard({
 
       <div className="mt-3 flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <div className="tnum text-2xl font-semibold tracking-tight text-white">
+          <div className="tnum text-2xl font-semibold tracking-tight text-[var(--text-strong)]">
             {formatPrice(price.price, price.precision)}
           </div>
-          <div className="mt-0.5 text-[11px] text-slate-500">{price.unit}</div>
+          <div className="mt-0.5 text-[11px] text-[var(--muted-soft)]">{price.unit}</div>
         </div>
         <div className="w-[120px] shrink-0">
           {sparkline && sparkline.length > 1 && (

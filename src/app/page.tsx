@@ -7,6 +7,7 @@ import { formatClock } from '@/lib/format';
 import PriceCard from '@/components/PriceCard';
 import HistoryChart from '@/components/HistoryChart';
 import RangeTabs from '@/components/RangeTabs';
+import ThemeSelector from '@/components/ThemeSelector';
 
 const RANGE_OPTIONS = ['1h', '6h', '24h', '7d', '30d', '90d', 'all'] as const;
 const RANGE_DAYS: Record<string, number> = {
@@ -163,31 +164,32 @@ export default function HomePage() {
       <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-strong)] sm:text-3xl">
               贵金属行情
             </h1>
             {autoRefresh && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-[var(--live-text)]">
                 <span className="live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 实时
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-[var(--muted)]">
             工商银行账户贵金属 · 黄金 / 白银 / 铂金 / 钯金 · 数据自动采集
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-right">
-            <div className="text-[11px] text-slate-500">
+          <ThemeSelector />
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-right">
+            <div className="text-[11px] text-[var(--muted-soft)]">
               {liveAt ? '实时获取' : '最近采集'}
             </div>
-            <div className="tnum text-sm font-medium text-slate-200">
+            <div className="tnum text-sm font-medium text-[var(--text)]">
               {formatClock(lastUpdated)}
             </div>
           </div>
-          <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300">
+          <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]">
             <input
               type="checkbox"
               className="accent-gold-500"
@@ -219,7 +221,7 @@ export default function HomePage() {
           ? Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="h-[128px] animate-pulse rounded-2xl border border-slate-800 bg-slate-900/50"
+                className="h-[128px] animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
               />
             ))
           : metals.map((m) => {
@@ -228,14 +230,14 @@ export default function HomePage() {
                 return (
                   <div
                     key={m.key}
-                    className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-slate-500"
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-[var(--muted-soft)]"
                   >
                     <div className="flex items-center gap-2">
                       <span
                         className="inline-block h-2 w-2 rounded-full"
                         style={{ backgroundColor: m.accent }}
                       />
-                      <span className="text-sm font-medium text-slate-300">
+                      <span className="text-sm font-medium text-[var(--text)]">
                         {m.name}
                       </span>
                     </div>
@@ -256,11 +258,11 @@ export default function HomePage() {
       </section>
 
       {/* Chart */}
-      <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/50 p-4 sm:p-5">
+      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white">历史走势</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-lg font-semibold text-[var(--text-strong)]">历史走势</h2>
+            <p className="text-xs text-[var(--muted-soft)]">
               点击上方卡片或下方标签切换品种 ·{' '}
               {historySource === 'merged'
                 ? '数据源：明细 + 小时聚合'
@@ -282,7 +284,7 @@ export default function HomePage() {
             selected={selected}
             onSelect={setSelected}
           />
-          <span className="mx-1 hidden items-center text-slate-600 sm:flex">|</span>
+          <span className="mx-1 hidden items-center text-[var(--border-strong)] sm:flex">|</span>
           <MetalGroup
             label="美元账户"
             metals={usdMetals}
@@ -304,7 +306,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-8 flex flex-col gap-2 border-t border-slate-800 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="mt-8 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-xs text-[var(--muted-soft)] sm:flex-row sm:items-center sm:justify-between">
         <div>
           数据来源：中国工商银行 · 仅供展示，不构成投资建议
         </div>
@@ -336,7 +338,7 @@ function MetalGroup({
   if (metals.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs text-slate-500">{label}</span>
+      <span className="mr-1 text-xs text-[var(--muted-soft)]">{label}</span>
       {metals.map((m) => {
         const active = m.key === selected;
         return (
@@ -347,8 +349,8 @@ function MetalGroup({
             className={
               'rounded-lg border px-2.5 py-1 text-xs font-medium transition ' +
               (active
-                ? 'border-gold-400/60 bg-gold-500/15 text-gold-200'
-                : 'border-slate-700 bg-slate-900/40 text-slate-300 hover:border-slate-600 hover:text-white')
+                ? 'border-gold-400/60 bg-gold-500/15 text-[var(--gold-chip-text)]'
+                : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-strong)]')
             }
           >
             {shortName(m)}

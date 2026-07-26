@@ -14,10 +14,27 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#070a12',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f7f4ec' },
+    { media: '(prefers-color-scheme: dark)', color: '#070a12' },
+  ],
   width: 'device-width',
   initialScale: 1,
 };
+
+const themeScript = `
+(() => {
+  try {
+    const saved = localStorage.getItem('gold-theme');
+    const mode = saved === 'light' || saved === 'dark' ? saved : 'system';
+    const theme = mode === 'system'
+      ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : mode;
+    document.documentElement.dataset.themeMode = mode;
+    document.documentElement.dataset.theme = theme;
+  } catch (_) {}
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -25,7 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

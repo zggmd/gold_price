@@ -11,6 +11,7 @@ A self-hosted ICBC account precious-metals price collector and dashboard. It per
 - Collects 8 account precious-metal products: gold, silver, platinum, and palladium quoted in both CNY and USD.
 - Polls ICBC every 30 seconds by default, with request timeouts, randomized jitter, and failure backoff.
 - Displays current prices, change rates, sparklines, and an interactive historical chart.
+- Supports light, dark, and system-following themes, with the preference saved in the browser.
 - Supports `1h`, `6h`, `24h`, `7d`, `30d`, `90d`, and all-time ranges.
 - Uses recent high-frequency snapshots plus long-term hourly OHLC storage to keep SQLite compact.
 - Downsamples historical responses on the server to avoid oversized payloads.

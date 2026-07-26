@@ -3,7 +3,47 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+  --page: #f7f4ec;
+  --page-end: #efe9dd;
+  --text: #172033;
+  --text-strong: #090f1c;
+  --muted: #657087;
+  --muted-soft: #8892a4;
+  --border: rgba(100, 116, 139, 0.25);
+  --border-strong: rgba(100, 116, 139, 0.42);
+  --surface: rgba(255, 255, 255, 0.68);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --surface-selected: rgba(255, 255, 255, 0.98);
+  --control-active: #ffffff;
+  --grid: rgba(71, 85, 105, 0.14);
+  --guide: rgba(51, 65, 85, 0.4);
+  --tooltip: rgba(255, 255, 255, 0.98);
+  --shadow: rgba(88, 67, 31, 0.13);
+  --gold-chip-text: #855318;
+  --live-text: #047857;
+}
+
+:root[data-theme='dark'] {
   color-scheme: dark;
+  --page: #070a12;
+  --page-end: #0a0e18;
+  --text: #e2e8f0;
+  --text-strong: #ffffff;
+  --muted: #94a3b8;
+  --muted-soft: #64748b;
+  --border: rgba(71, 85, 105, 0.6);
+  --border-strong: rgba(100, 116, 139, 0.72);
+  --surface: rgba(15, 23, 42, 0.6);
+  --surface-strong: rgba(30, 41, 59, 0.78);
+  --surface-selected: rgba(30, 41, 59, 0.92);
+  --control-active: rgba(51, 65, 85, 0.95);
+  --grid: rgba(148, 163, 184, 0.12);
+  --guide: rgba(226, 232, 240, 0.35);
+  --tooltip: rgba(15, 23, 42, 0.98);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --gold-chip-text: #ecd79c;
+  --live-text: #6ee7b7;
 }
 
 html,
@@ -12,13 +52,15 @@ body {
 }
 
 body {
-  @apply text-slate-200 antialiased;
-  background-color: #070a12;
+  @apply antialiased;
+  color: var(--text);
+  background-color: var(--page);
   background-image:
     radial-gradient(900px 480px at 78% -8%, rgba(245, 158, 11, 0.14), transparent 60%),
     radial-gradient(820px 460px at 8% 4%, rgba(56, 189, 248, 0.1), transparent 60%),
-    linear-gradient(180deg, #0a0e18 0%, #070a12 100%);
+    linear-gradient(180deg, var(--page-end) 0%, var(--page) 100%);
   background-attachment: fixed;
+  transition: color 180ms ease, background-color 180ms ease;
 }
 
 /* Tabular figures keep prices from twitching as digits change. */
