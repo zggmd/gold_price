@@ -19,6 +19,50 @@ const VBW = 820;
 const VBH = 340;
 const PAD = { l: 60, r: 20, t: 18, b: 30 };
 
+interface ChartPoint {
+  x: number;
+  y: number;
+}
+
+interface ChartRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+function segmentIntersectsRect(
+  start: ChartPoint,
+  end: ChartPoint,
+  rect: ChartRect,
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  let minT = 0;
+  let maxT = 1;
+
+  const edges: Array<[number, number]> = [
+    [-dx, start.x - rect.left],
+    [dx, rect.right - start.x],
+    [-dy, start.y - rect.top],
+    [dy, rect.bottom - start.y],
+  ];
+
+  for (const [direction, distance] of edges) {
+    if (direction === 0) {
+      if (distance < 0) return false;
+      continue;
+    }
+
+    const t = distance / direction;
+    if (direction < 0) minT = Math.max(minT, t);
+    else maxT = Math.min(maxT, t);
+    if (minT > maxT) return false;
+  }
+
+  return true;
+}
+
 export default function HistoryChart({
   points,
   accent,
@@ -107,10 +151,74 @@ export default function HistoryChart({
   // Tooltip box (SVG-native so no HTML-overlay math is needed).
   const tipW = 150;
   const tipH = 46;
-  const tipX = h
-    ? Math.min(Math.max(hx - tipW / 2, PAD.l), VBW - PAD.r - tipW)
-    : 0;
-  const tipY = h ? Math.max(hy - tipH - 12, PAD.t) : 0;
+  const tipGap = 12;
+  let tipX = 0;
+  let tipY = 0;
+
+  if (h) {
+    const maxTipX = VBW - PAD.r - tipW;
+    const maxTipY = baseY - tipH;
+    const clampTip = (x: number, y: number) => ({
+      x: Math.min(Math.max(x, PAD.l), maxTipX),
+      y: Math.min(Math.max(y, PAD.t), maxTipY),
+    });
+    const above = clampTip(hx - tipW / 2, hy - tipH - tipGap);
+    const below = clampTip(hx - tipW / 2, hy + tipGap);
+    const left = clampTip(hx - tipW - tipGap, hy - tipH / 2);
+    const right = clampTip(hx + tipGap, hy - tipH / 2);
+    const plotMidX = PAD.l + plotW / 2;
+    const plotMidY = PAD.t + plotH / 2;
+    const verticalCandidates = hy < plotMidY ? [below, above] : [above, below];
+    const horizontalCandidates = hx < plotMidX ? [right, left] : [left, right];
+    const farY = hy < plotMidY ? maxTipY : PAD.t;
+    const farX = hx < plotMidX ? maxTipX : PAD.l;
+    const otherY = farY === PAD.t ? maxTipY : PAD.t;
+    const otherX = farX === PAD.l ? maxTipX : PAD.l;
+    const candidates = [
+      ...verticalCandidates,
+      ...horizontalCandidates,
+      clampTip(farX, farY),
+      clampTip(otherX, farY),
+      clampTip(farX, otherY),
+      clampTip(otherX, otherY),
+    ];
+    const linePoints = points.map((point, index) => ({
+      x: xFor(index),
+      y: yFor(point.price),
+    }));
+    const clearance = 5;
+    const collisionCount = (candidate: ChartPoint) => {
+      const rect = {
+        left: candidate.x - clearance,
+        right: candidate.x + tipW + clearance,
+        top: candidate.y - clearance,
+        bottom: candidate.y + tipH + clearance,
+      };
+      let collisions = 0;
+
+      for (let index = 1; index < linePoints.length; index += 1) {
+        if (segmentIntersectsRect(linePoints[index - 1], linePoints[index], rect)) {
+          collisions += 1;
+        }
+      }
+
+      return collisions;
+    };
+    let bestCandidate = candidates[0];
+    let fewestCollisions = collisionCount(bestCandidate);
+
+    for (const candidate of candidates.slice(1)) {
+      const collisions = collisionCount(candidate);
+      if (collisions < fewestCollisions) {
+        bestCandidate = candidate;
+        fewestCollisions = collisions;
+        if (collisions === 0) break;
+      }
+    }
+
+    tipX = bestCandidate.x;
+    tipY = bestCandidate.y;
+  }
 
   return (
     <div className="relative w-full">
