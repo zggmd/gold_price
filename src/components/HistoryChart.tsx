@@ -85,8 +85,15 @@ export default function HistoryChart({
     if (!hasData) return;
     const svg = svgRef.current;
     if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const vbX = (e.clientX - rect.left) * (VBW / rect.width);
+    const screenMatrix = svg.getScreenCTM();
+    if (!screenMatrix) return;
+
+    // Account for viewBox scaling and its centered letterboxing. Mapping from
+    // the element bounds alone drifts whenever the SVG aspect ratios differ.
+    const pointer = svg.createSVGPoint();
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+    const vbX = pointer.matrixTransform(screenMatrix.inverse()).x;
     const rel = (vbX - PAD.l) / plotW;
     let idx = Math.round(rel * (points.length - 1));
     idx = Math.max(0, Math.min(points.length - 1, idx));
