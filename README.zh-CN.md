@@ -168,6 +168,25 @@ docker buildx build \
   --push .
 ```
 
+## GitHub Actions 自动部署
+
+推送到 `main` 后，[`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml) 会构建 amd64/arm64 镜像并发布到 GHCR，然后通过 SSH 按不可变的镜像 digest 更新服务。部署会等待健康检查，失败时自动回滚到更新前的镜像。镜像还包含 SBOM 和 provenance。
+
+先在 GitHub 仓库创建名为 `production` 的 Environment（建议开启 required reviewers），再添加以下 Environment secrets：
+
+| 名称 | 内容 |
+| --- | --- |
+| `DEPLOY_HOST` | 部署服务器域名或 IP |
+| `DEPLOY_USER` | 仅拥有该服务部署权限的系统用户 |
+| `DEPLOY_SSH_KEY` | 专用 SSH 私钥，不要复用个人主密钥 |
+| `DEPLOY_KNOWN_HOSTS` | 通过其他可信渠道核验过的服务器 host key；不要在 CI 中临时生成 |
+
+最后创建 Repository variable `DEPLOY_ENABLED=true` 才会启用部署 job；未设置时，推送只构建和发布镜像，不连接服务器。可选 Environment variables 为 `DEPLOY_PORT`（默认 `22`）和 `DEPLOY_PATH`（默认 `/opt/gold-price`，必须是不含空格的绝对路径）。建议先完成服务器、密钥和 Environment protection 配置，最后再打开此开关。
+
+服务器需安装 Docker 和 Compose v2，部署用户需能运行 `docker compose`。如果 GHCR package 是私有的，在服务器上使用一个仅有 `read:packages` 权限的凭据执行一次 `docker login ghcr.io`，不要把凭据写入仓库或 Actions 日志。运行时配置可保存在部署目录的 `.env` 中，权限会被设为 `600`；Actions 只在文件不存在时创建空文件，不会覆盖内容。生产 Compose 默认只监听 `127.0.0.1:3000`，应由同机反向代理提供 HTTPS；可在服务器 `.env` 中设置 `GOLD_PRICE_PORT` 改变宿主端口。若已有服务使用的 Docker 卷不叫 `gold-data`，首次部署前必须在 `.env` 中用 `GOLD_PRICE_VOLUME=现有卷名` 指向它，避免切换到新的空数据库。
+
+发布 job 只使用 GitHub 自动生成的短期 `GITHUB_TOKEN`，权限限制为 `contents: read` 和 `packages: write`；SSH 密钥只提供给受 `production` Environment 保护的部署 job。启用前还应保护默认分支，并限制可修改 workflow 文件的人员。
+
 ## 备份与恢复
 
 服务使用 SQLite WAL 模式，运行期间不要只复制主数据库文件。使用项目提供的在线备份脚本：
@@ -204,6 +223,8 @@ scripts/
 AGENTS.md              Codex/开发代理工作指南
 Dockerfile             生产镜像
 docker-compose.yml     本地容器部署
+deploy/docker-compose.yml  自动部署使用的生产 Compose 定义
+.github/workflows/deploy.yml  GHCR 构建与生产部署流水线
 ```
 
 ## 开发说明

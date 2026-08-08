@@ -31,6 +31,7 @@ rg --files -g '!node_modules' -g '!data' -g '!backups'
 - `src/lib/bootstrap.ts` 通过模块副作用启用 TLS 兼容并启动采集器。
 - 正常服务中，采集器在第一次请求 `/api/prices/*` 时启动。
 - 当前 `next build` 的路由数据收集也会求值 Route Handler 导入，从而在多个构建 worker 中触发 bootstrap。构建并非无副作用；必须隔离 `DATA_DIR` 和 `ICBC_URL`。这是现有实现的已知缺陷，不要依赖 Dockerfile 中“构建不会启动采集器”的旧注释。
+- Dockerfile 已将构建阶段固定到 `/tmp/gold-price-build-data` 和不可达的本地 `ICBC_URL`；修改构建阶段时必须保留这层隔离。
 - `globalThis.__goldBootstrapped` 用于避免开发环境 HMR 创建重复轮询器。
 - 一个服务进程只应存在一个采集循环。当前架构不适合无协调地启动多个副本写同一个数据库。
 
@@ -162,7 +163,8 @@ ICBC 是外部上游，不要在开发验证中制造高频请求。
 - standalone 输出包含原生 `.node` binding。
 - 运行镜像继续使用非 root 用户。
 - `/app/data` 对运行用户可写并通过卷持久化。
-- 构建阶段不会启动采集器或访问网络上游。
+- 即使构建阶段触发采集器，也只能接触隔离的临时数据目录和不可达的本地 mock 地址，不能访问真实上游。
+- 自动部署使用 GHCR 镜像 digest、受保护的 `production` Environment、严格 host key 校验和健康检查失败回滚；不要把 SSH/GHCR 凭据变成 build args 或写入 Compose。
 
 ## Local Workflow
 

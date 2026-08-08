@@ -172,6 +172,25 @@ docker buildx build \
   --push .
 ```
 
+## GitHub Actions deployment
+
+Every push to `main` runs [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml). It builds amd64/arm64 images, publishes them to GHCR with commit-SHA tags, an SBOM, and provenance, then deploys the immutable image digest over SSH. Compose waits for the health check and rolls back to the previous image on failure.
+
+Create a GitHub Environment named `production` (required reviewers are recommended) and add these Environment secrets:
+
+| Name | Value |
+| --- | --- |
+| `DEPLOY_HOST` | Deployment host name or IP address |
+| `DEPLOY_USER` | A dedicated, least-privilege deployment user |
+| `DEPLOY_SSH_KEY` | A dedicated SSH private key, not a personal primary key |
+| `DEPLOY_KNOWN_HOSTS` | The server host key verified out of band; do not generate it inside CI |
+
+Set the repository variable `DEPLOY_ENABLED=true` only when deployment should be activated. Without it, pushes build and publish the image but never connect to the server. Optional Environment variables are `DEPLOY_PORT` (default `22`) and `DEPLOY_PATH` (default `/opt/gold-price`; an absolute path without spaces). Configure the server, secrets, and Environment protection first, then enable deployment last.
+
+The server needs Docker with Compose v2 and the deployment user must be able to run `docker compose`. For a private GHCR package, log in on the server once with a narrowly scoped `read:packages` credential; never put it in the repository or workflow logs. Runtime settings may be kept in a mode-`600` `.env` file in the deployment directory; Actions creates an empty file only when absent and never replaces its contents. Production Compose binds to `127.0.0.1:3000` by default so a same-host HTTPS reverse proxy can expose it; set `GOLD_PRICE_PORT` in the server `.env` to change the host port. If an existing installation uses a volume other than `gold-data`, set `GOLD_PRICE_VOLUME=existing-volume-name` before the first deployment to avoid switching to a new empty database.
+
+The publishing job uses only GitHub's short-lived `GITHUB_TOKEN`, with workflow permissions limited to `contents: read` and `packages: write`. SSH credentials are available only to the `production` deployment job. Protect the default branch and restrict who can change workflow files before enabling automatic deployment.
+
 ## Backup and Restore
 
 The service uses SQLite WAL mode, so do not copy only the main database file while the service is running. Use the online backup script:
@@ -209,6 +228,8 @@ AGENTS.md              Codex/development-agent guide
 README.zh-CN.md        Chinese documentation
 Dockerfile             Production image
 docker-compose.yml     Container deployment
+deploy/docker-compose.yml  Production Compose definition used by CI
+.github/workflows/deploy.yml  GHCR build and production deployment workflow
 ```
 
 ## Development

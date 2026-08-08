@@ -31,8 +31,11 @@ RUN npm install --no-audit --no-fund
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# The poller is started lazily on the first API request (see src/lib/bootstrap.ts),
-# so `next build` never triggers it — no special build-time gating needed.
+# Next.js evaluates Route Handler imports while collecting build data. Keep any
+# resulting bootstrap work isolated from real data and the real ICBC endpoint.
+ENV DATA_DIR=/tmp/gold-price-build-data
+ENV ICBC_URL=http://127.0.0.1:9/unavailable-during-build
+ENV DISABLE_LEGACY_TLS=true
 RUN npm run build
 
 # ---------------------------------------------------------------------------

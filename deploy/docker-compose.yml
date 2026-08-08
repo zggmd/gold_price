@@ -1,0 +1,30 @@
+services:
+  gold-price:
+    image: ${GOLD_PRICE_IMAGE:?GOLD_PRICE_IMAGE must be an immutable image reference}
+    container_name: gold-price
+    restart: unless-stopped
+    ports:
+      # Keep the application private behind the host's reverse proxy by default.
+      - "127.0.0.1:${GOLD_PRICE_PORT:-3000}:3000"
+    # This file exists only on the server and is never uploaded by CI.
+    env_file:
+      - .env
+    environment:
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-30}
+      POLL_TIMEOUT_MS: ${POLL_TIMEOUT_MS:-8000}
+      POLL_JITTER_RATIO: ${POLL_JITTER_RATIO:-0.15}
+      NOW_CACHE_SECONDS: ${NOW_CACHE_SECONDS:-10}
+      RAW_RETENTION_HOURS: ${RAW_RETENTION_HOURS:-72}
+      MAINTENANCE_INTERVAL_MINUTES: ${MAINTENANCE_INTERVAL_MINUTES:-60}
+      MAX_HISTORY_POINTS: ${MAX_HISTORY_POINTS:-400}
+      DISABLE_LEGACY_TLS: ${DISABLE_LEGACY_TLS:-false}
+    volumes:
+      - gold-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  gold-data:
+    name: ${GOLD_PRICE_VOLUME:-gold-data}
